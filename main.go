@@ -7,6 +7,7 @@ import (
 	"os"
 
 	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/credentials"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/rds"
 )
@@ -18,27 +19,35 @@ type instanceInfo struct {
 }
 
 func main() {
-	sess := session.Must(session.NewSession())
 	duration := flag.String("duration", "1", "reserved purchase duration| 1 | 3 | 31536000 | 94608000")
 	multiAz := flag.Bool("multiaz", false, "multiaz: true:false")
 	offeringType := flag.String("offeringType", "All Upfront", "offeringType: Partial Upfront|All Upfront|No Upfront")
-	flag.Parse()
+	profile := flag.String("profile", "", "profile: aws profile name")
 	region := os.Getenv("AWS_DEFAULT_REGION")
 
+	flag.Parse()
 	if region == "" {
 		region = "ap-northeast-1"
 	}
+	awsConfig := &aws.Config{
+		Region: aws.String(region),
+	}
 
-	err := extractRdsReservedInstances(sess, region, duration, multiAz, offeringType)
+	if *profile != "" {
+		awsConfig.Credentials = credentials.NewSharedCredentials("", *profile)
+	}
+	sess := session.Must(session.NewSession(awsConfig))
+
+	err := extractRdsReservedInstances(sess, duration, multiAz, offeringType)
 	if err != nil {
 		log.Fatal(err)
 	}
+
 }
 
-func extractRdsReservedInstances(sess *session.Session, region string, duration *string, multiAz *bool, offeringType *string) (err error) {
+func extractRdsReservedInstances(sess *session.Session, duration *string, multiAz *bool, offeringType *string) (err error) {
 	rdsSvc := rds.New(
 		sess,
-		aws.NewConfig().WithRegion(region),
 	)
 	instanceList := map[string]*instanceInfo{}
 
@@ -77,7 +86,6 @@ func extractRdsReservedInstances(sess *session.Session, region string, duration 
 			return err
 		}
 		for _, offering := range offerings.ReservedDBInstancesOfferings {
-
 			fmt.Printf("%v,%v,%v,%v,%v,%v,%v\n", *offering.DBInstanceClass, *offering.ProductDescription, *offering.CurrencyCode, *offering.FixedPrice, instance.Count, *offering.FixedPrice*float64(instance.Count), instance.InstanceIdentifiers)
 		}
 	}
