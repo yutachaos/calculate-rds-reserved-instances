@@ -1,0 +1,64 @@
+before:
+  hooks:
+    - go mod tidy
+    - go generate ./...
+release:
+  github:
+    owner: yutachaos
+    name: calculate-rds-reserved-instances
+  name_template: '{{.Tag}}'
+brews:
+  - name: calculate-rds-reserved-instances
+    tap:
+      owner: yutachaos
+      name: homebrew-calculate-rds-reserved-instances
+    commit_author:
+      name: goreleaserbot
+      email: goreleaser@carlosbecker.com
+    description: "Calculate the number and price of rds reserved instances"
+    homepage: "https://github.com/yutachaos/calculate-rds-reserved-instances"
+    install: |
+      bin.install Dir['calculate-rds-reserved-instances']
+    test: |
+      system "#{bin}/calculate-rds-reserved-instances"
+builds:
+  - main: ./main.go
+    binary: calculate-rds-reserved-instances
+    goos:
+      - linux
+      - darwin
+      - windows
+    goarch:
+      - amd64
+      - "386"
+      - arm
+      - arm64
+    ldflags:
+      - -s -w
+      - "-X main.version={{.Version}}"
+      - "-X main.commit={{.Commit}}"
+snapshot:
+  name_template: main
+archives:
+  - format: zip
+    name_template: '{{ .Binary }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}{{ if .Arm }}v{{ .Arm }}{{ end }}'
+    files:
+      - LICENSE*
+      - README*
+nfpms:
+  - file_name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    vendor: yutachaos
+    homepage: https://github.com/yutachaos/calculate-rds-reserved-instances
+    maintainer: Yuta Kimura <bumplive@gmail.com>
+    license: MIT
+    formats:
+      - deb
+      - rpm
+checksum:
+  name_template: '{{ .ProjectName }}_{{ .Version }}_checksums.txt'
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - "Merge pull request"
+      - "Merge branch"
