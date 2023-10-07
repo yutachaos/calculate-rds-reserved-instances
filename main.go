@@ -71,7 +71,7 @@ func extractRdsReservedInstances(sess *session.Session, duration *string, multiA
 
 	}
 
-	fmt.Println("InstanceClass,ProductDescription,CurrencyCode,Price,Count,Amount,InstanceIdentifiers")
+	fmt.Println("InstanceClass,ProductDescription,CurrencyCode,Price,OfferringId,Count,Amount,InstanceIdentifiers")
 	for instanceClass, instance := range instanceList {
 		// TODO pagination
 		offerings, err := rdsSvc.DescribeReservedDBInstancesOfferings(&rds.DescribeReservedDBInstancesOfferingsInput{
@@ -86,7 +86,7 @@ func extractRdsReservedInstances(sess *session.Session, duration *string, multiA
 			return err
 		}
 		for _, offering := range offerings.ReservedDBInstancesOfferings {
-			fmt.Printf("%v,%v,%v,%v,%v,%v,%v\n", *offering.DBInstanceClass, *offering.ProductDescription, *offering.CurrencyCode, *offering.FixedPrice, instance.Count, *offering.FixedPrice*float64(instance.Count), instance.InstanceIdentifiers)
+			fmt.Printf("%v,%v,%v,%v,%v,%v,%v,%v\n", *offering.DBInstanceClass, *offering.ProductDescription, *offering.CurrencyCode, *offering.ReservedDBInstancesOfferingId, *offering.FixedPrice, instance.Count, *offering.FixedPrice*float64(instance.Count), instance.InstanceIdentifiers)
 		}
 	}
 	return err
