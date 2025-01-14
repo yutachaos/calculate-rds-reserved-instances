@@ -42,52 +42,56 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-
 }
 
 func extractRdsReservedInstances(sess *session.Session, duration *string, multiAz *bool, offeringType *string) (err error) {
-	rdsSvc := rds.New(
-		sess,
-	)
+	rdsSvc := rds.New(sess)
 	instanceList := map[string]*instanceInfo{}
 
-	// TODO pagination
-	instances, err := rdsSvc.DescribeDBInstances(&rds.DescribeDBInstancesInput{})
+	// Handle pagination for DescribeDBInstances
+	err = rdsSvc.DescribeDBInstancesPages(&rds.DescribeDBInstancesInput{},
+		func(page *rds.DescribeDBInstancesOutput, lastPage bool) bool {
+			for _, instance := range page.DBInstances {
+				if instanceList[*instance.DBInstanceClass] == nil {
+					instanceList[*instance.DBInstanceClass] = &instanceInfo{
+						Count:               1,
+						InstanceIdentifiers: []string{*instance.DBInstanceIdentifier},
+						ProductDescription:  *instance.Engine,
+					}
+				} else {
+					instanceList[*instance.DBInstanceClass].Count++
+					instanceList[*instance.DBInstanceClass].InstanceIdentifiers = append(instanceList[*instance.DBInstanceClass].InstanceIdentifiers, *instance.DBInstanceIdentifier)
+				}
+			}
+			return true
+		},
+	)
 	if err != nil {
 		return err
 	}
 
-	for _, instance := range instances.DBInstances {
-		if instanceList[*instance.DBInstanceClass] == nil {
-			instanceList[*instance.DBInstanceClass] = &instanceInfo{
-				Count:               1,
-				InstanceIdentifiers: []string{*instance.DBInstanceIdentifier},
-				ProductDescription:  *instance.Engine,
-			}
-		} else {
-			instanceList[*instance.DBInstanceClass].Count = instanceList[*instance.DBInstanceClass].Count + 1
-			instanceList[*instance.DBInstanceClass].InstanceIdentifiers = append(instanceList[*instance.DBInstanceClass].InstanceIdentifiers, *instance.DBInstanceIdentifier)
-		}
-
-	}
-
 	fmt.Println("InstanceClass,ProductDescription,CurrencyCode,Price,OfferringId,Count,Amount,InstanceIdentifiers")
+
+	// Iterate over instanceList and query DescribeReservedDBInstancesOfferings with pagination
 	for instanceClass, instance := range instanceList {
-		// TODO pagination
-		offerings, err := rdsSvc.DescribeReservedDBInstancesOfferings(&rds.DescribeReservedDBInstancesOfferingsInput{
-			DBInstanceClass:    &instanceClass,
-			Duration:           duration,
-			ProductDescription: &instance.ProductDescription,
-			MultiAZ:            multiAz,
-			OfferingType:       offeringType,
-		},
+		err = rdsSvc.DescribeReservedDBInstancesOfferingsPages(
+			&rds.DescribeReservedDBInstancesOfferingsInput{
+				DBInstanceClass:    &instanceClass,
+				Duration:           duration,
+				ProductDescription: &instance.ProductDescription,
+				MultiAZ:            multiAz,
+				OfferingType:       offeringType,
+			},
+			func(page *rds.DescribeReservedDBInstancesOfferingsOutput, lastPage bool) bool {
+				for _, offering := range page.ReservedDBInstancesOfferings {
+					fmt.Printf("%v,%v,%v,%v,%v,%v,%v,%v\n", *offering.DBInstanceClass, *offering.ProductDescription, *offering.CurrencyCode, *offering.ReservedDBInstancesOfferingId, *offering.FixedPrice, instance.Count, *offering.FixedPrice*float64(instance.Count), instance.InstanceIdentifiers)
+				}
+				return true
+			},
 		)
 		if err != nil {
 			return err
 		}
-		for _, offering := range offerings.ReservedDBInstancesOfferings {
-			fmt.Printf("%v,%v,%v,%v,%v,%v,%v,%v\n", *offering.DBInstanceClass, *offering.ProductDescription, *offering.CurrencyCode, *offering.ReservedDBInstancesOfferingId, *offering.FixedPrice, instance.Count, *offering.FixedPrice*float64(instance.Count), instance.InstanceIdentifiers)
-		}
 	}
-	return err
+	return nil
 }
