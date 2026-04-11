@@ -4,9 +4,9 @@ Calculate the number and price of rds reserved instances
 
 # Usage
 - go run main.go
-  InstanceClass,ProductDescription,CurrencyCode,Price,Count,Amount,InstanceIdentifiers
-  db.r5.xlarge,aurora-mysql,USD,3408,2,6816,[sample-xlarge-cluster-ins-1 sample-cluster-ins-2]
-  db.r6g.large,aurora-mysql,USD,1525,1,1525,[sample-large-cluster-ins-1]
+  InstanceClass,ProductDescription,CurrencyCode,Price,OfferringId,Count,Amount,InstanceIdentifiers
+  db.r5.xlarge,aurora-mysql,USD,3408,xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx,2,6816,[sample-xlarge-cluster-ins-1 sample-cluster-ins-2]
+  db.r6g.large,aurora-mysql,USD,1525,yyyyyyyy-yyyy-yyyy-yyyy-yyyyyyyyyyyy,1,1525,[sample-large-cluster-ins-1]
 
 # Option
 
