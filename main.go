@@ -1,10 +1,12 @@
 package main
 
 import (
+	"encoding/csv"
 	"flag"
 	"fmt"
 	"log"
 	"os"
+	"strings"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/credentials"
@@ -23,14 +25,20 @@ func main() {
 	multiAz := flag.Bool("multiaz", false, "multiaz: true:false")
 	offeringType := flag.String("offeringType", "All Upfront", "offeringType: Partial Upfront|All Upfront|No Upfront")
 	profile := flag.String("profile", "", "profile: aws profile name")
-	region := os.Getenv("AWS_DEFAULT_REGION")
+	region := flag.String("region", "", "region: aws region name")
 
 	flag.Parse()
-	if region == "" {
-		region = "ap-northeast-1"
+
+	resolvedRegion := *region
+	if resolvedRegion == "" {
+		resolvedRegion = os.Getenv("AWS_DEFAULT_REGION")
 	}
+	if resolvedRegion == "" {
+		resolvedRegion = "ap-northeast-1"
+	}
+
 	awsConfig := &aws.Config{
-		Region: aws.String(region),
+		Region: aws.String(resolvedRegion),
 	}
 
 	if *profile != "" {
@@ -44,12 +52,11 @@ func main() {
 	}
 }
 
-func extractRdsReservedInstances(sess *session.Session, duration *string, multiAz *bool, offeringType *string) (err error) {
+func extractRdsReservedInstances(sess *session.Session, duration *string, multiAz *bool, offeringType *string) error {
 	rdsSvc := rds.New(sess)
 	instanceList := map[string]*instanceInfo{}
 
-	// Handle pagination for DescribeDBInstances
-	err = rdsSvc.DescribeDBInstancesPages(&rds.DescribeDBInstancesInput{},
+	err := rdsSvc.DescribeDBInstancesPages(&rds.DescribeDBInstancesInput{},
 		func(page *rds.DescribeDBInstancesOutput, lastPage bool) bool {
 			for _, instance := range page.DBInstances {
 				if instanceList[*instance.DBInstanceClass] == nil {
@@ -70,9 +77,9 @@ func extractRdsReservedInstances(sess *session.Session, duration *string, multiA
 		return err
 	}
 
-	fmt.Println("InstanceClass,ProductDescription,CurrencyCode,Price,OfferringId,Count,Amount,InstanceIdentifiers")
+	w := csv.NewWriter(os.Stdout)
+	w.Write([]string{"InstanceClass", "ProductDescription", "CurrencyCode", "OfferingId", "Price", "Count", "Amount", "InstanceIdentifiers"})
 
-	// Iterate over instanceList and query DescribeReservedDBInstancesOfferings with pagination
 	for instanceClass, instance := range instanceList {
 		err = rdsSvc.DescribeReservedDBInstancesOfferingsPages(
 			&rds.DescribeReservedDBInstancesOfferingsInput{
@@ -84,7 +91,17 @@ func extractRdsReservedInstances(sess *session.Session, duration *string, multiA
 			},
 			func(page *rds.DescribeReservedDBInstancesOfferingsOutput, lastPage bool) bool {
 				for _, offering := range page.ReservedDBInstancesOfferings {
-					fmt.Printf("%v,%v,%v,%v,%v,%v,%v,%v\n", *offering.DBInstanceClass, *offering.ProductDescription, *offering.CurrencyCode, *offering.ReservedDBInstancesOfferingId, *offering.FixedPrice, instance.Count, *offering.FixedPrice*float64(instance.Count), instance.InstanceIdentifiers)
+					amount := *offering.FixedPrice * float64(instance.Count)
+					w.Write([]string{
+						*offering.DBInstanceClass,
+						*offering.ProductDescription,
+						*offering.CurrencyCode,
+						*offering.ReservedDBInstancesOfferingId,
+						fmt.Sprintf("%v", *offering.FixedPrice),
+						fmt.Sprintf("%d", instance.Count),
+						fmt.Sprintf("%v", amount),
+						strings.Join(instance.InstanceIdentifiers, " "),
+					})
 				}
 				return true
 			},
@@ -93,5 +110,6 @@ func extractRdsReservedInstances(sess *session.Session, duration *string, multiA
 			return err
 		}
 	}
-	return nil
+	w.Flush()
+	return w.Error()
 }
