@@ -42,9 +42,9 @@ calculate-rds-reserved-instances [options]
 Output is CSV format printed to stdout:
 
 ```
-InstanceClass,ProductDescription,CurrencyCode,Price,OfferringId,Count,Amount,InstanceIdentifiers
-db.r5.xlarge,aurora-mysql,USD,3408,xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx,2,6816,[sample-xlarge-cluster-ins-1 sample-cluster-ins-2]
-db.r6g.large,aurora-mysql,USD,1525,yyyyyyyy-yyyy-yyyy-yyyy-yyyyyyyyyyyy,1,1525,[sample-large-cluster-ins-1]
+InstanceClass,ProductDescription,CurrencyCode,OfferingId,Price,Count,Amount,InstanceIdentifiers
+db.r5.xlarge,aurora-mysql,USD,xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx,3408,2,6816,sample-xlarge-cluster-ins-1 sample-cluster-ins-2
+db.r6g.large,aurora-mysql,USD,yyyyyyyy-yyyy-yyyy-yyyy-yyyyyyyyyyyy,1525,1,1525,sample-large-cluster-ins-1
 ```
 
 | Column | Description |
@@ -52,11 +52,11 @@ db.r6g.large,aurora-mysql,USD,1525,yyyyyyyy-yyyy-yyyy-yyyy-yyyyyyyyyyyy,1,1525,[
 | InstanceClass | DB instance class (e.g. `db.r5.xlarge`) |
 | ProductDescription | DB engine (e.g. `aurora-mysql`) |
 | CurrencyCode | Currency of the price (e.g. `USD`) |
+| OfferingId | Reserved DB instance offering ID |
 | Price | Fixed upfront price per instance |
-| OfferringId | Reserved DB instance offering ID |
 | Count | Number of running instances of this class |
 | Amount | Total price (Price × Count) |
-| InstanceIdentifiers | List of DB instance identifiers |
+| InstanceIdentifiers | Space-separated list of DB instance identifiers |
 
 ## Options
 
@@ -70,10 +70,12 @@ Usage of calculate-rds-reserved-instances:
     	offeringType: Partial Upfront|All Upfront|No Upfront (default "All Upfront")
   -profile string
     	profile: aws profile name
+  -region string
+    	region: aws region name
 ```
 
 ## Environment Variables
 
 | Variable | Description | Default |
 |---|---|---|
-| `AWS_DEFAULT_REGION` | AWS region to query | `ap-northeast-1` |
+| `AWS_DEFAULT_REGION` | AWS region to query (overridden by `-region` flag) | `ap-northeast-1` |
