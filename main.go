@@ -4,6 +4,7 @@ import (
 	"encoding/csv"
 	"flag"
 	"fmt"
+	"io"
 	"log"
 	"os"
 	"strings"
@@ -12,6 +13,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws/credentials"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/rds"
+	"github.com/aws/aws-sdk-go/service/rds/rdsiface"
 )
 
 type instanceInfo struct {
@@ -46,14 +48,13 @@ func main() {
 	}
 	sess := session.Must(session.NewSession(awsConfig))
 
-	err := extractRdsReservedInstances(sess, duration, multiAz, offeringType)
+	err := extractRdsReservedInstances(rds.New(sess), os.Stdout, duration, multiAz, offeringType)
 	if err != nil {
 		log.Fatal(err)
 	}
 }
 
-func extractRdsReservedInstances(sess *session.Session, duration *string, multiAz *bool, offeringType *string) error {
-	rdsSvc := rds.New(sess)
+func extractRdsReservedInstances(rdsSvc rdsiface.RDSAPI, out io.Writer, duration *string, multiAz *bool, offeringType *string) error {
 	instanceList := map[string]*instanceInfo{}
 
 	err := rdsSvc.DescribeDBInstancesPages(&rds.DescribeDBInstancesInput{},
@@ -77,7 +78,7 @@ func extractRdsReservedInstances(sess *session.Session, duration *string, multiA
 		return err
 	}
 
-	w := csv.NewWriter(os.Stdout)
+	w := csv.NewWriter(out)
 	w.Write([]string{"InstanceClass", "ProductDescription", "CurrencyCode", "OfferingId", "Price", "Count", "Amount", "InstanceIdentifiers"})
 
 	for instanceClass, instance := range instanceList {
